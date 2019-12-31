@@ -96,7 +96,12 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 	}
 
 	tweakListOptions := func(op *metav1.ListOptions) {
-		op = options
+		if options.LabelSelector != nil {
+			op.LabelSelector = options.LabelSelector
+		}
+		if options.FieldSelector != nil {
+			op.FieldSelector = options.FieldSelector
+		}
 	}
 
 	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, resourceCfg.Namespace, tweakListOptions)
