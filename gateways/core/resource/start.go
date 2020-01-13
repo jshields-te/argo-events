@@ -21,6 +21,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-events/common"
 	"github.com/argoproj/argo-events/gateways"
 	"github.com/pkg/errors"
@@ -96,10 +99,10 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 	}
 
 	tweakListOptions := func(op *metav1.ListOptions) {
-		if options.LabelSelector != nil {
+		if options.LabelSelector != "" {
 			op.LabelSelector = options.LabelSelector
 		}
-		if options.FieldSelector != nil {
+		if options.FieldSelector != "" {
 			op.FieldSelector = options.FieldSelector
 		}
 	}
@@ -109,6 +112,22 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 	informer := factory.ForResource(gvr)
 
 	informerEventCh := make(chan *InformerEvent)
+
+	normalizerIgnoreDifferences, err := argo.NewDiffNormalizer(
+		[]v1alpha1.ResourceIgnoreDifferences{{
+			Group: "argoproj.io",
+			Kind:  "Application",
+			JSONPointers: []string{
+				"/status/health",
+				"/status/observedAt",
+				"/status/reconciledAt",
+				"/status/sync",
+				"/status/resources",
+				"/metadata/generation",
+				"/metadata/resourceVersion",
+				"/metadta/kubectlKubernetesIoLastAppliedConfiguration",
+			},
+		}}, make(map[string]v1alpha1.ResourceOverride))
 
 	go func() {
 		for {
@@ -125,6 +144,12 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 				if err := passFilters(event.Obj.(*unstructured.Unstructured), resourceCfg.Filter); err != nil {
 					executor.Log.WithField(common.LabelEventSource, eventSource.Name).WithError(err).Warnln("failed to apply the filter")
 					continue
+				}
+				if false {
+					if err := hasNotChanged(normalizerIgnoreDifferences, event); err != nil {
+						executor.Log.WithField(common.LabelEventSource, eventSource.Name).WithError(err).Warnln("dropping insignificant object update")
+						continue
+					}
 				}
 				dataCh <- eventBody
 			}
@@ -211,4 +236,22 @@ func passFilters(obj *unstructured.Unstructured, filter *ResourceFilter) error {
 		return errors.Errorf("resource is created after filter time. creation-timestamp: %s, filter-creation-timestamp: %s", created.UTC().String(), filter.CreatedBy.UTC().String())
 	}
 	return nil
+}
+
+// helper method to see if resource is still "changed" after normalization for ignoreDifferences objects
+func hasNotChanged(normalizer diff.Normalizer, event *InformerEvent) error {
+	//if filter == nil || filter.IgnoreDifferences == nil {
+	//	return nil
+	//}
+	if event.OldObj == nil {
+		return nil
+	}
+	oldUn := event.OldObj.(*unstructured.Unstructured)
+	newUn := event.Obj.(*unstructured.Unstructured)
+	normDiff := diff.Diff(newUn, oldUn, normalizer)
+
+	if normDiff.Diff.Modified() {
+		return nil
+	}
+	return errors.Errorf("objects have not changed")
 }

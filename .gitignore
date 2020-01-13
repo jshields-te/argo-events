@@ -2,6 +2,7 @@
 .idea/
 .DS_Store
 vendor/
+vendor-backup/
 dist/
 # delve debug binaries
 cmd/**/debug

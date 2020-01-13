@@ -17,14 +17,116 @@ limitations under the License.
 package resource
 
 import (
+	"testing"
+
+	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/ghodss/yaml"
 	"github.com/mitchellh/mapstructure"
 	"github.com/smartystreets/goconvey/convey"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
 )
+
+const newFakeApp = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: real
+  namespace: fake
+spec:
+  source:
+    path: "some/path"
+    repoURL: "https://github.com/argoproj/argocd-example-apps.git"
+    targetRevision: "HEAD"
+  destination:
+    namespace: fake
+    server: "https://cluster-api.com"
+status:
+  observedAt: "2020-01-13T22:26:06Z"
+  summary:
+    externalURLs:
+    - http://sonar.te-engg-dev-us.thousandeyes.com:9000
+    images:
+    - alpine:3.10.3
+    - gcr.io/te-engg-dev/ci/sonarqube:7.3-developer
+    - busybox:1.31
+    - busybox:1.25.0
+    - mysql:5.7.14
+`
+
+const oldFakeApp = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fake
+  namespace: fake
+spec:
+  source:
+    path: "some/path"
+    repoURL: "https://github.com/argoproj/argocd-example-apps.git"
+    targetRevision: "HEAD"
+  destination:
+    namespace: fake
+    server: "https://cluster-api.com"
+status:
+  observedAt: "2020-01-13T14:26:06Z"
+  summary:
+    externalURLs:
+    - http://sonar.te-engg-dev-us.thousandeyes.com:9000
+    images:
+    - alpine:3.10.3
+    - gcr.io/te-engg-dev/ci/sonarqube:7.3-consumer
+    - busybox:1.31
+    - busybox:1.25.0
+    - mysql:5.7.14
+`
+
+func TestBasicIgnoreDifferences(t *testing.T) {
+	convey.Convey("Given a resource object with only unimportant updates, ensure no update executes", t, func() {
+
+		normalizerIgnoreDifferences, err := argo.NewDiffNormalizer(
+			[]v1alpha1.ResourceIgnoreDifferences{{
+				Group: "argoproj.io",
+				Kind:  "Application",
+				JSONPointers: []string{
+					"/status/health",
+					"/status/observedAt",
+					"/status/reconciledAt",
+					"/status/sync",
+					"/status/resources",
+					"/metadata/generation",
+					"/metadata/resourceVersion",
+					"/metadta/kubectlKubernetesIoLastAppliedConfiguration",
+				},
+			}}, make(map[string]v1alpha1.ResourceOverride))
+
+		var newUn, oldUn unstructured.Unstructured
+		err = yaml.Unmarshal([]byte(newFakeApp), &newUn)
+		convey.So(err, convey.ShouldBeNil)
+		err = yaml.Unmarshal([]byte(oldFakeApp), &oldUn)
+		convey.So(err, convey.ShouldBeNil)
+
+		// rawDiffJSON, _ := diff.Diff(&newUn, &oldUn, nil).JSONFormat()
+		// convey.Printf("\nNon-Normalized Diff: \n%v\n", rawDiffJSON)
+		// normDiffJSON, _ := diff.Diff(&newUn, &oldUn, normalizerIgnoreDifferences).JSONFormat()
+		// convey.Printf("\nNormalized Diff: \n%v\n", normDiffJSON)
+
+		event := &InformerEvent{
+			&newUn,
+			&oldUn,
+			"UPDATE",
+		}
+
+		err = hasNotChanged(normalizerIgnoreDifferences, event)
+		convey.So(err, convey.ShouldBeNil)
+	})
+}
 
 func TestFilter(t *testing.T) {
 	convey.Convey("Given a resource object, apply filter on it", t, func() {
@@ -52,4 +154,18 @@ func TestFilter(t *testing.T) {
 		}, ps.(*resource).Filter)
 		convey.So(err, convey.ShouldBeNil)
 	})
+}
+
+func toUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
+	uObj, err := runtime.NewTestUnstructuredConverter(equality.Semantic).ToUnstructured(obj)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: uObj}, nil
+}
+
+func mustToUnstructured(obj interface{}) *unstructured.Unstructured {
+	un, err := toUnstructured(obj)
+	errors.CheckError(err)
+	return un
 }
