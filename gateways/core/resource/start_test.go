@@ -34,8 +34,8 @@ const newFakeApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: real
-  namespace: fake
+  name: fake
+  namespace: fake1
 spec:
   source:
     path: "some/path"
@@ -50,11 +50,7 @@ status:
     externalURLs:
     - http://sonar.te-engg-dev-us.thousandeyes.com:9000
     images:
-    - alpine:3.10.3
     - gcr.io/te-engg-dev/ci/sonarqube:7.3-developer
-    - busybox:1.31
-    - busybox:1.25.0
-    - mysql:5.7.14
 `
 
 const oldFakeApp = `
@@ -62,7 +58,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: fake
-  namespace: fake
+  namespace: fake2
 spec:
   source:
     path: "some/path"
@@ -77,29 +73,18 @@ status:
     externalURLs:
     - http://sonar.te-engg-dev-us.thousandeyes.com:9000
     images:
-    - alpine:3.10.3
-    - gcr.io/te-engg-dev/ci/sonarqube:7.3-consumer
-    - busybox:1.31
-    - busybox:1.25.0
-    - mysql:5.7.14
+    - gcr.io/te-engg-dev/ci/sonarqube:7.3-developer
 `
 
 func TestBasicIgnoreDifferences(t *testing.T) {
 	convey.Convey("Given a resource object with only unimportant updates, ensure no update executes", t, func() {
-
 		normalizerIgnoreDifferences, err := argo.NewDiffNormalizer(
 			[]v1alpha1.ResourceIgnoreDifferences{{
 				Group: "argoproj.io",
 				Kind:  "Application",
 				JSONPointers: []string{
-					"/status/health",
 					"/status/observedAt",
-					"/status/reconciledAt",
-					"/status/sync",
-					"/status/resources",
-					"/metadata/generation",
-					"/metadata/resourceVersion",
-					"/metadta/kubectlKubernetesIoLastAppliedConfiguration",
+					"/metadata/namespace",
 				},
 			}}, make(map[string]v1alpha1.ResourceOverride))
 
@@ -116,7 +101,45 @@ func TestBasicIgnoreDifferences(t *testing.T) {
 		}
 
 		err = hasNotChanged(normalizerIgnoreDifferences, event)
+		convey.So(err, convey.ShouldNotBeNil)
+		convey.So(err.Error(), convey.ShouldEqual, "objects have not changed")
+	})
+}
+
+var esIgnore = `
+namespace: "argo"
+group: "argoproj.io"
+version: "v1alpha1"
+resource: "applications"
+filter:
+  ignoreDifferences:
+  - "/status/observedAt"
+  - "/metadata/namespace"
+`
+
+func TestFilterIgnoreDifferences(t *testing.T) {
+	convey.Convey("Given an ignoreDifferences filter in the event source, filter an application", t, func() {
+		ps, err := parseEventSource(esIgnore)
 		convey.So(err, convey.ShouldBeNil)
+
+		normalizer, err := normalizerIgnoreDifferences(ps.(*resource).Filter)
+		convey.So(err, convey.ShouldBeNil)
+
+		var newUn, oldUn unstructured.Unstructured
+		err = yaml.Unmarshal([]byte(newFakeApp), &newUn)
+		convey.So(err, convey.ShouldBeNil)
+		err = yaml.Unmarshal([]byte(oldFakeApp), &oldUn)
+		convey.So(err, convey.ShouldBeNil)
+
+		event := &InformerEvent{
+			&newUn,
+			&oldUn,
+			"UPDATE",
+		}
+
+		err = hasNotChanged(normalizer, event)
+		convey.So(err, convey.ShouldNotBeNil)
+		convey.So(err.Error(), convey.ShouldEqual, "objects have not changed")
 	})
 }
 

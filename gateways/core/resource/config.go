@@ -62,11 +62,12 @@ type resource struct {
 
 // ResourceFilter contains K8 ObjectMeta information to further filter resource event objects
 type ResourceFilter struct {
-	Prefix      string            `json:"prefix,omitempty"`
-	Labels      map[string]string `json:"labels,omitempty"`
-	Annotations map[string]string `json:"annotations,omitempty"`
-	Fields      map[string]string `json:"fields,omitempty"`
-	CreatedBy   metav1.Time       `json:"createdBy,omitempty"`
+	Prefix            string            `json:"prefix,omitempty"`
+	Labels            map[string]string `json:"labels,omitempty"`
+	Annotations       map[string]string `json:"annotations,omitempty"`
+	Fields            map[string]string `json:"fields,omitempty"`
+	CreatedBy         metav1.Time       `json:"createdBy,omitempty"`
+	IgnoreDifferences []string          `json:"ignoreDifferences,omitempty"`
 }
 
 func parseEventSource(es string) (interface{}, error) {
