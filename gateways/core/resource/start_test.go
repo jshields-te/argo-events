@@ -19,17 +19,14 @@ package resource
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/ghodss/yaml"
 	"github.com/mitchellh/mapstructure"
 	"github.com/smartystreets/goconvey/convey"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -112,11 +109,6 @@ func TestBasicIgnoreDifferences(t *testing.T) {
 		err = yaml.Unmarshal([]byte(oldFakeApp), &oldUn)
 		convey.So(err, convey.ShouldBeNil)
 
-		// rawDiffJSON, _ := diff.Diff(&newUn, &oldUn, nil).JSONFormat()
-		// convey.Printf("\nNon-Normalized Diff: \n%v\n", rawDiffJSON)
-		// normDiffJSON, _ := diff.Diff(&newUn, &oldUn, normalizerIgnoreDifferences).JSONFormat()
-		// convey.Printf("\nNormalized Diff: \n%v\n", normDiffJSON)
-
 		event := &InformerEvent{
 			&newUn,
 			&oldUn,
@@ -154,18 +146,4 @@ func TestFilter(t *testing.T) {
 		}, ps.(*resource).Filter)
 		convey.So(err, convey.ShouldBeNil)
 	})
-}
-
-func toUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
-	uObj, err := runtime.NewTestUnstructuredConverter(equality.Semantic).ToUnstructured(obj)
-	if err != nil {
-		return nil, err
-	}
-	return &unstructured.Unstructured{Object: uObj}, nil
-}
-
-func mustToUnstructured(obj interface{}) *unstructured.Unstructured {
-	un, err := toUnstructured(obj)
-	errors.CheckError(err)
-	return un
 }
