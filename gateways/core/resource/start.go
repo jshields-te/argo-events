@@ -134,8 +134,8 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 					executor.Log.WithField(common.LabelEventSource, eventSource.Name).WithError(err).Errorln("failed to generate ignoreDifferencesNormalizer")
 					continue
 				}
-				if err := hasNotChanged(normalizer, event); err != nil {
-					executor.Log.WithField(common.LabelEventSource, eventSource.Name).WithError(err).Warnln("dropping insignificant object update")
+				if hasNotChanged(normalizer, event) {
+					executor.Log.WithField(common.LabelEventSource, eventSource.Name).Warnln("dropping ignored object update")
 					continue
 				}
 				dataCh <- eventBody
@@ -243,16 +243,13 @@ func normalizerIgnoreDifferences(filter *ResourceFilter) (diff.Normalizer, error
 }
 
 // helper method to see if resource is still "changed" after normalization for ignoreDifferences objects
-func hasNotChanged(normalizer diff.Normalizer, event *InformerEvent) error {
+func hasNotChanged(normalizer diff.Normalizer, event *InformerEvent) bool {
 	if normalizer == nil || event.OldObj == nil {
-		return nil
+		return true
 	}
 	oldUn := event.OldObj.(*unstructured.Unstructured)
 	newUn := event.Obj.(*unstructured.Unstructured)
 	normDiff := diff.Diff(newUn, oldUn, normalizer)
 
-	if normDiff.Diff.Modified() {
-		return nil
-	}
-	return errors.Errorf("objects have not changed")
+	return !normDiff.Diff.Modified()
 }

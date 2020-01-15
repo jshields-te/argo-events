@@ -78,7 +78,7 @@ status:
 
 func TestBasicIgnoreDifferences(t *testing.T) {
 	convey.Convey("Given a resource object with only unimportant updates, ensure no update executes", t, func() {
-		normalizerIgnoreDifferences, err := argo.NewDiffNormalizer(
+		normalizer, err := argo.NewDiffNormalizer(
 			[]v1alpha1.ResourceIgnoreDifferences{{
 				Group: "argoproj.io",
 				Kind:  "Application",
@@ -100,9 +100,8 @@ func TestBasicIgnoreDifferences(t *testing.T) {
 			"UPDATE",
 		}
 
-		err = hasNotChanged(normalizerIgnoreDifferences, event)
-		convey.So(err, convey.ShouldNotBeNil)
-		convey.So(err.Error(), convey.ShouldEqual, "objects have not changed")
+		unchanged := hasNotChanged(normalizer, event)
+		convey.So(unchanged, convey.ShouldBeTrue)
 	})
 }
 
@@ -137,9 +136,8 @@ func TestFilterIgnoreDifferences(t *testing.T) {
 			"UPDATE",
 		}
 
-		err = hasNotChanged(normalizer, event)
-		convey.So(err, convey.ShouldNotBeNil)
-		convey.So(err.Error(), convey.ShouldEqual, "objects have not changed")
+		unchanged := hasNotChanged(normalizer, event)
+		convey.So(unchanged, convey.ShouldBeTrue)
 	})
 }
 
