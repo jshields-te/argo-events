@@ -21,6 +21,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-events/common"
 	"github.com/argoproj/argo-events/gateways"
 	"github.com/pkg/errors"
@@ -96,10 +99,10 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 	}
 
 	tweakListOptions := func(op *metav1.ListOptions) {
-		if options.LabelSelector != nil {
+		if options.LabelSelector != "" {
 			op.LabelSelector = options.LabelSelector
 		}
-		if options.FieldSelector != nil {
+		if options.FieldSelector != "" {
 			op.FieldSelector = options.FieldSelector
 		}
 	}
@@ -109,6 +112,12 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 	informer := factory.ForResource(gvr)
 
 	informerEventCh := make(chan *InformerEvent)
+
+	normalizer, err := normalizerIgnoreDifferences(resourceCfg.Filter)
+	if err != nil {
+		errorCh <- err
+		return
+	}
 
 	go func() {
 		for {
@@ -124,6 +133,10 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 				}
 				if err := passFilters(event.Obj.(*unstructured.Unstructured), resourceCfg.Filter); err != nil {
 					executor.Log.WithField(common.LabelEventSource, eventSource.Name).WithError(err).Warnln("failed to apply the filter")
+					continue
+				}
+				if hasNotChanged(normalizer, event) {
+					executor.Log.WithField(common.LabelEventSource, eventSource.Name).Warnln("dropping ignored object update")
 					continue
 				}
 				dataCh <- eventBody
@@ -211,4 +224,33 @@ func passFilters(obj *unstructured.Unstructured, filter *ResourceFilter) error {
 		return errors.Errorf("resource is created after filter time. creation-timestamp: %s, filter-creation-timestamp: %s", created.UTC().String(), filter.CreatedBy.UTC().String())
 	}
 	return nil
+}
+
+// helper method to create a normalizer which ignores differences in paths specified by the ignoreDifferences filter
+func normalizerIgnoreDifferences(filter *ResourceFilter) (diff.Normalizer, error) {
+	if filter == nil || filter.IgnoreDifferences == nil {
+		return nil, nil
+	}
+	ignoreDifferencesNormalizer, err := argo.NewDiffNormalizer(
+		[]v1alpha1.ResourceIgnoreDifferences{{
+			Group:        "argoproj.io",
+			Kind:         "Application",
+			JSONPointers: filter.IgnoreDifferences,
+		}}, make(map[string]v1alpha1.ResourceOverride))
+	if err != nil {
+		return nil, err
+	}
+	return ignoreDifferencesNormalizer, nil
+}
+
+// helper method to see if resource is still "changed" after normalization for ignoreDifferences objects
+func hasNotChanged(normalizer diff.Normalizer, event *InformerEvent) bool {
+	if normalizer == nil || event.OldObj == nil {
+		return false
+	}
+	oldUn := event.OldObj.(*unstructured.Unstructured)
+	newUn := event.Obj.(*unstructured.Unstructured)
+	normDiff := diff.Diff(newUn, oldUn, normalizer)
+
+	return !normDiff.Diff.Modified()
 }
