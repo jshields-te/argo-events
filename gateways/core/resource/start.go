@@ -113,6 +113,12 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 
 	informerEventCh := make(chan *InformerEvent)
 
+	normalizer, err := normalizerIgnoreDifferences(resourceCfg.Filter)
+	if err != nil {
+		errorCh <- err
+		return
+	}
+
 	go func() {
 		for {
 			select {
@@ -127,11 +133,6 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 				}
 				if err := passFilters(event.Obj.(*unstructured.Unstructured), resourceCfg.Filter); err != nil {
 					executor.Log.WithField(common.LabelEventSource, eventSource.Name).WithError(err).Warnln("failed to apply the filter")
-					continue
-				}
-				normalizer, err := normalizerIgnoreDifferences(resourceCfg.Filter)
-				if err != nil {
-					executor.Log.WithField(common.LabelEventSource, eventSource.Name).WithError(err).Errorln("failed to generate ignoreDifferencesNormalizer")
 					continue
 				}
 				if hasNotChanged(normalizer, event) {
@@ -245,7 +246,7 @@ func normalizerIgnoreDifferences(filter *ResourceFilter) (diff.Normalizer, error
 // helper method to see if resource is still "changed" after normalization for ignoreDifferences objects
 func hasNotChanged(normalizer diff.Normalizer, event *InformerEvent) bool {
 	if normalizer == nil || event.OldObj == nil {
-		return true
+		return false
 	}
 	oldUn := event.OldObj.(*unstructured.Unstructured)
 	newUn := event.Obj.(*unstructured.Unstructured)
