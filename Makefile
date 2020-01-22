@@ -8,6 +8,8 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 
+PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
+
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
   -X ${PACKAGE}.buildDate=${BUILD_DATE} \
@@ -124,6 +126,9 @@ resource-image: resource-linux
 	docker build -t $(IMAGE_PREFIX)resource-gateway:$(IMAGE_TAG) -f ./gateways/core/resource/Dockerfile .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then  docker push $(IMAGE_PREFIX)resource-gateway:$(IMAGE_TAG) ; fi
 
+resource-image-te:
+	docker build -t gcr.io/te-engg-dev/argoproj/resource-gateway:v0.11 -f ./gateways/core/resource/build/Dockerfile .
+	docker push gcr.io/te-engg-dev/argoproj/resource-gateway:v0.11
 
 artifact:
 	go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/artifact-gateway ./gateways/core/artifact/cmd

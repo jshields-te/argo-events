@@ -123,6 +123,7 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 		for {
 			select {
 			case event, ok := <-informerEventCh:
+				executor.Log.WithField(common.LabelEventSource, eventSource.Name).Infoln("event received; processing...")
 				if !ok {
 					return
 				}
