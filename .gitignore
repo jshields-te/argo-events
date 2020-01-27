@@ -4,6 +4,7 @@
 vendor/
 vendor-backup/
 dist/
+tmp/
 # delve debug binaries
 cmd/**/debug
 hack/**/debug

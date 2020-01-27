@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-events/common"
 	"github.com/argoproj/argo-events/gateways"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -123,6 +124,7 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 		for {
 			select {
 			case event, ok := <-informerEventCh:
+				executor.Log.WithField(common.LabelEventSource, eventSource.Name).Infoln("processing resource event...")
 				if !ok {
 					return
 				}
@@ -135,8 +137,21 @@ func (executor *ResourceEventSourceExecutor) listenEvents(resourceCfg *resource,
 					executor.Log.WithField(common.LabelEventSource, eventSource.Name).WithError(err).Warnln("failed to apply the filter")
 					continue
 				}
+				if executor.Log.IsLevelEnabled(logrus.DebugLevel) {
+					if normalizer == nil || event.OldObj == nil {
+						if event.OldObj == nil {
+							executor.Log.WithField(common.LabelEventSource, eventSource.Name).Debugln("Either OldObj is nil, or normalizer is nil...")
+						}
+					} else {
+						oldUn := event.OldObj.(*unstructured.Unstructured)
+						newUn := event.Obj.(*unstructured.Unstructured)
+						normDiff := diff.Diff(newUn, oldUn, normalizer)
+						jsondiff, _ := normDiff.JSONFormat()
+						executor.Log.WithField(common.LabelEventSource, eventSource.Name).Debugf("normDiff: %v\n", jsondiff)
+					}
+				}
 				if hasNotChanged(normalizer, event) {
-					executor.Log.WithField(common.LabelEventSource, eventSource.Name).Warnln("dropping ignored object update")
+					executor.Log.WithField(common.LabelEventSource, eventSource.Name).Infoln("dropping ignored object update")
 					continue
 				}
 				dataCh <- eventBody

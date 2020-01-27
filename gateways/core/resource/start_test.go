@@ -76,6 +76,29 @@ status:
     - gcr.io/te-engg-dev/ci/sonarqube:7.3-developer
 `
 
+const diffFakeApp = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: real
+  namespace: fake2
+spec:
+  source:
+    path: "some/path"
+    repoURL: "https://github.com/argoproj/argocd-example-apps.git"
+    targetRevision: "HEAD"
+  destination:
+    namespace: fake
+    server: "https://cluster-api.com"
+status:
+  observedAt: "2020-01-13T14:26:06Z"
+  summary:
+    externalURLs:
+    - http://sonar.te-engg-dev-us.thousandeyes.com:9000
+    images:
+    - gcr.io/te-engg-dev/ci/sonarqube:7.3-developer
+`
+
 func TestBasicIgnoreDifferences(t *testing.T) {
 	convey.Convey("Given a resource object with only unimportant updates, ensure no update executes", t, func() {
 		normalizer, err := argo.NewDiffNormalizer(
@@ -124,20 +147,20 @@ func TestFilterIgnoreDifferences(t *testing.T) {
 		normalizer, err := normalizerIgnoreDifferences(ps.(*resource).Filter)
 		convey.So(err, convey.ShouldBeNil)
 
-		var newUn, oldUn unstructured.Unstructured
-		err = yaml.Unmarshal([]byte(newFakeApp), &newUn)
-		convey.So(err, convey.ShouldBeNil)
+		var oldUn, difUn unstructured.Unstructured
 		err = yaml.Unmarshal([]byte(oldFakeApp), &oldUn)
+		convey.So(err, convey.ShouldBeNil)
+		err = yaml.Unmarshal([]byte(diffFakeApp), &difUn)
 		convey.So(err, convey.ShouldBeNil)
 
 		event := &InformerEvent{
-			&newUn,
 			&oldUn,
+			&difUn,
 			"UPDATE",
 		}
 
 		unchanged := hasNotChanged(normalizer, event)
-		convey.So(unchanged, convey.ShouldBeTrue)
+		convey.So(unchanged, convey.ShouldBeFalse)
 	})
 }
 
