@@ -7,7 +7,7 @@ retract v1.15.1 // Contains retractions only.
 retract v1.15.0 // Published accidentally.
 
 require (
-	cloud.google.com/go/compute/metadata v0.1.0
+	cloud.google.com/go/compute/metadata v0.2.1
 	cloud.google.com/go/pubsub v1.26.0
 	github.com/Azure/azure-event-hubs-go/v3 v3.3.19
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
@@ -71,7 +71,7 @@ require (
 	go.uber.org/ratelimit v0.2.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
-	google.golang.org/api v0.101.0
+	google.golang.org/api v0.102.0
 	google.golang.org/grpc v1.50.1
 	gopkg.in/jcmturner/gokrb5.v5 v5.3.0
 	k8s.io/api v0.25.0
