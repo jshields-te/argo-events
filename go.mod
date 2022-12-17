@@ -7,7 +7,7 @@ retract v1.15.1 // Contains retractions only.
 retract v1.15.0 // Published accidentally.
 
 require (
-	cloud.google.com/go/compute/metadata v0.2.2
+	cloud.google.com/go/compute/metadata v0.2.3
 	cloud.google.com/go/pubsub v1.28.0
 	github.com/Azure/azure-event-hubs-go/v3 v3.4.0
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
@@ -86,7 +86,7 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute v1.13.0 // indirect
+	cloud.google.com/go/compute v1.14.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.1 // indirect
 	github.com/AthenZ/athenz v1.10.39 // indirect
