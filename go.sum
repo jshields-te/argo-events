@@ -505,8 +505,8 @@ github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kd
 github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20210826220005-b48c857c3a0e/go.mod h1:F7bn7fEU90QkQ3tnmaTx3LTKLEDqnwWODIYppRQ5hnY=
 github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20220418222510-f25a4f6275ed/go.mod h1:F7bn7fEU90QkQ3tnmaTx3LTKLEDqnwWODIYppRQ5hnY=
 github.com/antlr/antlr4/runtime/Go/antlr v1.4.10/go.mod h1:F7bn7fEU90QkQ3tnmaTx3LTKLEDqnwWODIYppRQ5hnY=
-github.com/antonmedv/expr v1.12.0 h1:hIOn7jjY86E09PXvn9zgdt2FbWVru0ud9Rm5DbNoYNw=
-github.com/antonmedv/expr v1.12.0/go.mod h1:FPC8iWArxls7axbVLsW+kpg1mz29A1b2M6jt+hZfDkU=
+github.com/antonmedv/expr v1.12.1 h1:GTGrGN1kxxb+le0uQKaFRK8By4cvq1sleUCGE/U6hHg=
+github.com/antonmedv/expr v1.12.1/go.mod h1:FPC8iWArxls7axbVLsW+kpg1mz29A1b2M6jt+hZfDkU=
 github.com/apache/openwhisk-client-go v0.0.0-20190915054138-716c6f973eb2 h1:mOsBfI/27csXzqNYu7XAf14RPGsRrcXJ8fjaYIhkuVU=
 github.com/apache/openwhisk-client-go v0.0.0-20190915054138-716c6f973eb2/go.mod h1:jLLKYP7+1+LFlIJW1n9U1gqeveLM1HIwa4ZHNOFxjPw=
 github.com/apache/pulsar-client-go v0.9.0 h1:L5jvGFXJm0JNA/PgUiJctTVHHttCe4wIEFDv4vojiQM=
